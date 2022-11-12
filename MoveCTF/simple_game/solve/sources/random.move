@@ -7,6 +7,11 @@ module solve::hack_random {
     
     const ERR_HIGH_ARG_GREATER_THAN_LOW_ARG: u64 = 101;
 
+    struct Test_bcs has key, store, drop {
+        value: u8,
+        bool: bool,
+    }
+
     public fun my_seed(ctx: &mut TxContext): vector<u8> {
         let ctx_bytes = bcs::new(bcs::to_bytes(ctx));
         let _recover_address = bcs::peel_address(&mut ctx_bytes);
@@ -102,6 +107,7 @@ module solve::hack_random {
         rand_u64_range_with_seed(s, low, high)
     }
 
+    /// if without offset the next random is 0
     public fun refresh_ctx(offset: u64, ctx: &mut TxContext) {
         let time = 0;
         while(true) {
@@ -113,7 +119,6 @@ module solve::hack_random {
         };
 
         let i = 0;
-        /// if without offset the next random is 0
         while (i < (time - offset)) {
             let id = object::new(ctx);
             object::delete(id);
@@ -122,12 +127,22 @@ module solve::hack_random {
     }
 
     #[test]
-    fun test() {
-        use sui::tx_context;
+    fun test_bcs() {
+        use sui::bcs;
         use std::debug;
 
-        use ctf::random;
+        let obj = Test_bcs {value : 127, bool: false};
+        let obj_bytes = bcs::new(bcs::to_bytes(&obj));
+        debug::print(&obj_bytes);
+         
+    }
 
+    #[test]
+    fun test() {
+        use std::debug;
+        use sui::tx_context;
+
+        use ctf::random;
 
         let admin = @0xf;
         // sha3(1)
@@ -135,6 +150,9 @@ module solve::hack_random {
         let epoch = 1234;
         let ctx = tx_context::new(admin, tx_hash, epoch, 1);
         let ctx_mut = &mut ctx;
+
+        let ctx_bytes = bcs::new(bcs::to_bytes(ctx_mut));
+        debug::print(&ctx_bytes);
 
 
         let time = 0;
@@ -155,7 +173,7 @@ module solve::hack_random {
         assert!(random::rand_u64_range(0, 100, ctx_mut) == 0, 0);
 
         object::delete(object::new(ctx_mut));
-        refresh_ctx(ctx_mut);
-        assert!(&random::rand_u64_range(0, 100, ctx_mut));
+        refresh_ctx(0, ctx_mut);
+        assert!(random::rand_u64_range(0, 100, ctx_mut) == 0, 0);
     }
 }
